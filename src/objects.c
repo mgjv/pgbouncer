@@ -563,6 +563,31 @@ bool check_fast_fail(PgSocket *client)
 	return false;
 }
 
+static bool set_role_and_schema(PgSocket *server, PgSocket *client) 
+{
+	/* Send correct SET ROLE and SCHEMA to server */
+	// TODO Probably build this up in a buffer before sending.
+	bool res;
+	/* Allocate enough room for "SET SCHEMA 'username'" */
+	size_t len = strlen("SET SCHEMA '';") + strlen(client->auth_user->name) + 1;
+	char *cmd = malloc(len);
+
+	slog_debug(client, "Setting up role");
+	snprintf(cmd, len, "SET ROLE %s;", client->auth_user->name);
+	SEND_generic(res, server, 'Q', "s", cmd);
+	if (!res)
+		slog_noise(server, "Failed: SET ROLE %s", client->auth_user->name);
+
+	slog_debug(client, "Setting up schema");
+	snprintf(cmd, len, "SET SCHEMA '%s';", client->auth_user->name);
+	SEND_generic(res, server, 'Q', "s", cmd);
+	if (!res)
+		slog_noise(server, "Failed: to SET SCHEMA '%s'", client->auth_user->name);
+
+	free(cmd);
+	return res;
+}
+
 /* link if found, otherwise put into wait queue */
 bool find_server(PgSocket *client)
 {
@@ -622,6 +647,14 @@ bool find_server(PgSocket *client)
 		} else {
 			res = true;
 		}
+
+		// TODO: add config option to connection
+		// TODO: This probably has to go in with varchange
+		if (0) {
+			set_role_and_schema(server, client);
+			res = false;
+		}
+
 	} else {
 		pause_client(client);
 		res = false;
@@ -684,6 +717,7 @@ static bool life_over(PgSocket *server)
 }
 
 /* connecting/active -> idle, unlink if needed */
+// TODO -- Does this need to do the RESET ROLE?
 bool release_server(PgSocket *server)
 {
 	PgPool *pool = server->pool;
@@ -773,6 +807,7 @@ void disconnect_server(PgSocket *server, bool notify, const char *reason, ...)
 		if (client) {
 			client->link = NULL;
 			server->link = NULL;
+			// TODO RESET ROLE?
 			disconnect_client(client, true, "%s", reason);
 		}
 		break;

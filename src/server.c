@@ -233,6 +233,8 @@ static bool handle_server_work(PgSocket *server, PktHdr *pkt)
 	/* pooling decisions will be based on this packet */
 	case 'Z':		/* ReadyForQuery */
 
+		slog_debug(server, "Ready for query");
+
 		/* if partial pkt, wait */
 		if (!mbuf_get_char(&pkt->data, &state))
 			return false;

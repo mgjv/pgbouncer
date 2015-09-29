@@ -1,3 +1,4 @@
 [submodule "lib"]
 	path = lib
-	url = git://github.com/markokr/libusual.git
+	#url = git://github.com/markokr/libusual.git
+	url = git://github.com/mgjv/libusual.git
