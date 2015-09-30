@@ -570,7 +570,7 @@ static bool set_role_and_schema(PgSocket *server, PgSocket *client)
 	bool res;
 	/* Allocate enough room for "SET SCHEMA 'username'" */
 	size_t len = strlen("SET SCHEMA '';") + strlen(client->auth_user->name) + 1;
-	char *cmd = malloc(len);
+	char *cmd = malloc(len); // TODO malloc can fail, not sure what sensibly can be done
 
 	slog_debug(client, "Setting up role");
 	snprintf(cmd, len, "SET ROLE %s;", client->auth_user->name);
