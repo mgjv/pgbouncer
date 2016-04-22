@@ -175,8 +175,7 @@ static void set_autodb(const char *connstr)
 }
 
 
-/*
- * The following function allows auto-conections to specify
+/* The following function allows auto-conections to specify
  * their target database by providing a connection-string-like
  * format that we'll tranlate on the fly here.
  */
@@ -184,6 +183,11 @@ static void set_autodb(const char *connstr)
 #define DYN_PREFIX_LEN (sizeof(DYN_PREFIX) - 1)
 #define HAS_DYN_PREFIX(name) (0 == strncmp(DYN_PREFIX, name, DYN_PREFIX_LEN))
 #define DYN_SEP '&'
+/*
+ * It would be nice to be able to use equals signs in the connection string,
+ * but this triggers psql to hand the db name off to libpq, which then parses
+ * it as a PQ connection string, breaking things.
+ */
 #define DYN_ASSIGN '-'
 
 static bool set_autodb_dyn(const char *name) 
@@ -196,7 +200,7 @@ static bool set_autodb_dyn(const char *name)
 		return false;
 	}
 
-	/* copy everything except the prefix * and replace all separators with spaces */
+	/* copy everything except the prefix and replace */
 	strcpy(connstr, name + DYN_PREFIX_LEN);
 	p = connstr;
 	while ((p = strchr(p, DYN_SEP)) != NULL) {

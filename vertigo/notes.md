@@ -30,3 +30,14 @@ a connection string config (what we specific on config.ini) on demand, dynamical
 * Executed: `echo "delete from MACHINES where name='test' ; insert into MACHINES values ('test') ; select * from MACHINES;" | psql -p 5433 dyn_dbname_vdb2_user_vusr2`
 * Confirmed the result returns `machineDb2`.
 * Confirmed that mixing usr/db values (e.g. `dyn_dbname_vdb2_user_vusr1`) denies the statements ("permission denied for relation machines").
+
+# Problems we may have to deal with, or TODO
+
+- Because of the name-value pair nature of the 'fake' connection string, we may
+  get requests for the same end point with different ordering. We need to make
+  sure all clients use a normalised format of this string, or we should
+  normalise.
+- Maybe use alternative formats, such as
+    - DYN:host.domain:db:user:password
+    - DYN:user:password@host.domain:db
+  Would this break the jdbc URL format at the Java side, though?
