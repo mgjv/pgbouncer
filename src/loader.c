@@ -190,14 +190,14 @@ static void set_autodb(const char *connstr)
  */
 #define DYN_ASSIGN '-'
 
-static bool set_autodb_dyn(const char *name) 
+static char *dynamic_connstr(const char *name) 
 {
 	char *p, *connstr;
 
 	connstr = malloc(strlen(name) - DYN_PREFIX_LEN + 1);
 	if (connstr == NULL) {
 		log_warning("failed to allocate memory for connstr");
-		return false;
+		return NULL;
 	}
 
 	/* copy everything except the prefix and replace */
@@ -213,11 +213,7 @@ static bool set_autodb_dyn(const char *name)
 
 	log_info("Dynamic connstr: '%s'", connstr);
 
-	/* TODO is this safe? Do we need to worry about concurrent access? */
-	set_autodb(connstr);
-	free(connstr);
-
-	return true;
+	return connstr;
 }
 
 /* fill PgDatabase from connstr */
@@ -257,11 +253,12 @@ bool parse_database(void *base, const char *name, const char *connstr)
 	}
 
 	if (HAS_DYN_PREFIX(name)) {
-		if (!set_autodb_dyn(name))
-			return false;
+	    tmp_connstr = dynamic_connstr(name);
+	}
+	else {
+	    tmp_connstr = strdup(connstr);
 	}
 
-	tmp_connstr = strdup(connstr);
 	if (!tmp_connstr)
 		return false;
 
