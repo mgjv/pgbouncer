@@ -177,6 +177,38 @@ static void set_autodb(const char *connstr)
 /* fill PgDatabase from connstr */
 bool parse_database(void *base, const char *name, const char *connstr)
 {
+	// HACK BEGINS...
+	const char* prefix = "dyn_";
+	unsigned long prefix_len = strlen(prefix);
+	char* dyn_conn_string = NULL;
+
+	// if name starts with prefix...
+	if (strlen(name) > prefix_len && (strncmp(prefix, name, prefix_len) == 0)) {
+		//dyn_conn_string = copy of name without prefix
+		char* s1 = strchr(name,'_');
+		s1++;
+		dyn_conn_string = malloc(strlen(s1));
+		if (dyn_conn_string == NULL) {
+			// err... return false?
+		}
+		strcpy(dyn_conn_string, s1);
+		bool insertEquals = true;
+		s1 = strchr(dyn_conn_string,'_');
+		while (s1 != NULL) {
+			if (insertEquals) {
+				s1[0] = '=';
+				insertEquals = false;
+			} else {
+				s1[0] = ' ';
+				insertEquals = true;
+			}
+			s1 = strchr(dyn_conn_string,'_');
+		}
+		connstr = dyn_conn_string;
+		log_info("Dynamic connstr=%s", dyn_conn_string);
+	}
+
+	// HACK ENDS....
 	char *p, *key, *val;
 	PktBuf *msg;
 	PgDatabase *db;
@@ -390,9 +422,11 @@ bool parse_database(void *base, const char *name, const char *connstr)
 	/* remember dbname */
 	db->dbname = (char *)msg->buf + dbname_ofs;
 	free(tmp_connstr);
+	if (dyn_conn_string != NULL) free(dyn_conn_string);
 	return true;
 fail:
 	free(tmp_connstr);
+	if (dyn_conn_string != NULL) free(dyn_conn_string);
 	return true;
 }
 
