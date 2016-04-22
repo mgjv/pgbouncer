@@ -107,7 +107,7 @@ extern int cf_sbuf_len;
 #include "hba.h"
 
 /* to avoid allocations will use static buffers */
-#define MAX_DBNAME	64
+#define MAX_DBNAME	256
 #define MAX_USERNAME	64
 #define MAX_PASSWORD	64
 

@@ -9,6 +9,7 @@
 /pgbouncer
 /.objs
 /tags
+/cscope.out
 /test/.objs
 /test/hba_test
 /test/log

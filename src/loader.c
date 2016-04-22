@@ -174,41 +174,51 @@ static void set_autodb(const char *connstr)
 	}
 }
 
+
+/*
+ * The following function allows auto-conections to specify
+ * their target database by providing a connection-string-like
+ * format that we'll tranlate on the fly here.
+ */
+#define DYN_PREFIX "DYN&"
+#define DYN_PREFIX_LEN (sizeof(DYN_PREFIX) - 1)
+#define HAS_DYN_PREFIX(name) (0 == strncmp(DYN_PREFIX, name, DYN_PREFIX_LEN))
+#define DYN_SEP '&'
+#define DYN_ASSIGN '-'
+
+static bool set_autodb_dyn(const char *name) 
+{
+	char *p, *connstr;
+
+	connstr = malloc(strlen(name) - DYN_PREFIX_LEN + 1);
+	if (connstr == NULL) {
+		log_warning("failed to allocate memory for connstr");
+		return false;
+	}
+
+	/* copy everything except the prefix * and replace all separators with spaces */
+	strcpy(connstr, name + DYN_PREFIX_LEN);
+	p = connstr;
+	while ((p = strchr(p, DYN_SEP)) != NULL) {
+		*p = ' ';
+	}
+	p = connstr;
+	while ((p = strchr(p, DYN_ASSIGN)) != NULL) {
+		*p = '=';
+	}
+
+	log_info("Dynamic connstr: '%s'", connstr);
+
+	/* TODO is this safe? Do we need to worry about concurrent access? */
+	set_autodb(connstr);
+	free(connstr);
+
+	return true;
+}
+
 /* fill PgDatabase from connstr */
 bool parse_database(void *base, const char *name, const char *connstr)
 {
-	// HACK BEGINS...
-	const char* prefix = "dyn_";
-	unsigned long prefix_len = strlen(prefix);
-	char* dyn_conn_string = NULL;
-
-	// if name starts with prefix...
-	if (strlen(name) > prefix_len && (strncmp(prefix, name, prefix_len) == 0)) {
-		//dyn_conn_string = copy of name without prefix
-		char* s1 = strchr(name,'_');
-		s1++;
-		dyn_conn_string = malloc(strlen(s1));
-		if (dyn_conn_string == NULL) {
-			// err... return false?
-		}
-		strcpy(dyn_conn_string, s1);
-		bool insertEquals = true;
-		s1 = strchr(dyn_conn_string,'_');
-		while (s1 != NULL) {
-			if (insertEquals) {
-				s1[0] = '=';
-				insertEquals = false;
-			} else {
-				s1[0] = ' ';
-				insertEquals = true;
-			}
-			s1 = strchr(dyn_conn_string,'_');
-		}
-		connstr = dyn_conn_string;
-		log_info("Dynamic connstr=%s", dyn_conn_string);
-	}
-
-	// HACK ENDS....
 	char *p, *key, *val;
 	PktBuf *msg;
 	PgDatabase *db;
@@ -240,6 +250,11 @@ bool parse_database(void *base, const char *name, const char *connstr)
 	if (strcmp(name, "*") == 0) {
 		set_autodb(connstr);
 		return true;
+	}
+
+	if (HAS_DYN_PREFIX(name)) {
+		if (!set_autodb_dyn(name))
+			return false;
 	}
 
 	tmp_connstr = strdup(connstr);
@@ -422,11 +437,9 @@ bool parse_database(void *base, const char *name, const char *connstr)
 	/* remember dbname */
 	db->dbname = (char *)msg->buf + dbname_ofs;
 	free(tmp_connstr);
-	if (dyn_conn_string != NULL) free(dyn_conn_string);
 	return true;
 fail:
 	free(tmp_connstr);
-	if (dyn_conn_string != NULL) free(dyn_conn_string);
 	return true;
 }
 
