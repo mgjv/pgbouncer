@@ -107,7 +107,6 @@ extern int cf_sbuf_len;
 #include "hba.h"
 
 /* to avoid allocations will use static buffers */
-#define MAX_DBNAME	256
 #define MAX_USERNAME	64
 #define MAX_PASSWORD	64
 
@@ -277,7 +276,7 @@ struct PgUser {
  */
 struct PgDatabase {
 	struct List head;
-	char name[MAX_DBNAME];	/* db name for clients */
+	char *name;		/* db name for clients */
 
 	bool db_paused;		/* PAUSE <db>; was issued */
 	bool db_dead;		/* used on RELOAD/SIGHUP to later detect removed dbs */

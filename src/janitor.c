@@ -650,6 +650,7 @@ void kill_database(PgDatabase *db)
 		statlist_remove(&database_list, &db->head);
 	}
 	aatree_destroy(&db->user_tree);
+	free(db->name);
 	slab_free(db_cache, db);
 }
 

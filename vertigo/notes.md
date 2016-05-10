@@ -1,4 +1,4 @@
-# From HipChat
+# Investigation on where to tackle the problem:
 ```
 handle_client_startup() calls to
 decide_startup_pool()
@@ -13,17 +13,15 @@ it calls parse_database, where I think most of the work is being done to actuall
 the server side of the connection
 ```
 # Implemented feature
-If the dbname starts with "dyn_" the code will parse what follows and create 
+If the dbname starts with "DYN&" the code will parse what follows and create 
 a connection string config (what we specific on config.ini) on demand, dynamically. Example:
-`dyn_dbname_vdb2_user_vusr2` is translated to `dbname=vdb2 user=vusr2`. The keys should match what we can put in the `PgDatabase` struct.
+`DYN&dbname-vdb2&user-vusr2` is translated to `dbname=vdb2 user=vusr2`. The
+keys should match what we can put in the `PgDatabase` struct.
 
 # Issues
-* Parsing code very rudimentary and fragile, not supporting underscore in values or key names.
-* Not sure how to handle password.
 * Tested only with psql, not sure how it works with JDBC, etc.
 
-# Testging notes
-
+# Testing notes
 * Created local db `vert1`, owner `vusr1` with password `vpwd1`
 * Created local db `vert2`, owner `vusr2` with password `vpwd2`
 * In each one, created table MACHINES(name) and inserted values `machineDb1` and `machineDb2`, respectively.
@@ -37,7 +35,3 @@ a connection string config (what we specific on config.ini) on demand, dynamical
   get requests for the same end point with different ordering. We need to make
   sure all clients use a normalised format of this string, or we should
   normalise.
-- Maybe use alternative formats, such as
-    - DYN:host.domain:db:user:password
-    - DYN:user:password@host.domain:db
-  Would this break the jdbc URL format at the Java side, though?

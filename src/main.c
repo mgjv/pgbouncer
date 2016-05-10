@@ -485,6 +485,7 @@ static void signal_setup(void)
 	if (err < 0)
 		fatal_perror("signal_add");
 
+
 	signal_set(&ev_sigusr2, SIGUSR2, handle_sigusr2, NULL);
 	err = signal_add(&ev_sigusr2, NULL);
 	if (err < 0)

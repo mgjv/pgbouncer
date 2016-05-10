@@ -309,19 +309,23 @@ static void put_in_order(struct List *newitem, struct StatList *list,
 PgDatabase *add_database(const char *name)
 {
 	PgDatabase *db = find_database(name);
+	size_t name_len = strlen(name);
 
 	/* create new object if needed */
 	if (db == NULL) {
 		db = slab_alloc(db_cache);
 		if (!db)
 			return NULL;
-
-		list_init(&db->head);
-		if (strlcpy(db->name, name, sizeof(db->name)) >= sizeof(db->name)) {
-			log_warning("Too long db name: %s", name);
+		db->name = malloc(name_len + 1);
+		if (!db->name)
+		{
+			log_warning("Couldn't allocate name: %s", name);
 			slab_free(db_cache, db);
 			return NULL;
 		}
+
+		list_init(&db->head);
+		strcpy(db->name, name);
 		aatree_init(&db->user_tree, user_node_cmp, user_node_release);
 		put_in_order(&db->head, &database_list, cmp_database);
 	}

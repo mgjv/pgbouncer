@@ -175,9 +175,9 @@ static void set_autodb(const char *connstr)
 }
 
 
-/* The following function allows auto-conections to specify
+/* The following function allows auto-connections to specify
  * their target database by providing a connection-string-like
- * format that we'll tranlate on the fly here.
+ * format that we'll translate on the fly here.
  */
 #define DYN_PREFIX "DYN&"
 #define DYN_PREFIX_LEN (sizeof(DYN_PREFIX) - 1)
@@ -253,10 +253,10 @@ bool parse_database(void *base, const char *name, const char *connstr)
 	}
 
 	if (HAS_DYN_PREFIX(name)) {
-	    tmp_connstr = dynamic_connstr(name);
+		tmp_connstr = dynamic_connstr(name);
 	}
 	else {
-	    tmp_connstr = strdup(connstr);
+		tmp_connstr = strdup(connstr);
 	}
 
 	if (!tmp_connstr)
