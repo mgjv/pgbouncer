@@ -5,7 +5,7 @@ pgbouncer.ini
 Description
 ===========
 
-Config file is in "ini" format. Section names are between "[" and "]".  Lines
+The configuration file is in "ini" format. Section names are between "[" and "]".  Lines
 starting with ";" or "#" are taken as comments and ignored. The characters ";"
 and "#" are not recognized when they appear later in the line.
 
@@ -60,14 +60,14 @@ Default: /tmp
 unix_socket_mode
 ----------------
 
-Filesystem mode for unix socket.
+File system mode for Unix socket.
 
 Default: 0777
 
 unix_socket_group
 -----------------
 
-Group name to use for unix socket.
+Group name to use for Unix socket.
 
 Default: not set
 
@@ -106,10 +106,15 @@ auth_type
 
 How to authenticate users.
 
+pam
+    PAM is used to authenticate users, `auth_file`_ is ignored. This method is not
+    compatible with databases using `auth_user`_ option. Service name reported to
+    PAM is "pgbouncer". Also, `pam` is still not supported in HBA configuration file.
+
 hba
     Actual auth type is loaded from `auth_hba_file`_.  This allows different
     authentication methods different access paths.  Example: connection
-    over unix socket use ``peer`` auth method, connection over TCP
+    over Unix socket use ``peer`` auth method, connection over TCP
     must use TLS. Supported from version 1.7 onwards.
 
 cert
@@ -139,7 +144,24 @@ Query to load user's password from database.
 Direct access to pg_shadow requires admin rights.  It's preferable to
 use non-admin user that calls SECURITY DEFINER function instead.
 
+Note that the query is run inside target database, so if a function
+is used it needs to be installed into each database.
+
 Default: ``SELECT usename, passwd FROM pg_shadow WHERE usename=$1``
+
+.. _auth_user:
+
+auth_user
+---------
+
+If ``auth_user`` is set, any user not specified in auth_file will be
+queried through the ``auth_query`` query from pg_shadow in the database
+using ``auth_user``. Auth_user's password will be taken from ``auth_file``.
+
+Direct access to pg_shadow requires admin rights.  It's preferable to
+use non-admin user that calls SECURITY DEFINER function instead.
+
+Default: not set.
 
 pool_mode
 ---------
@@ -175,7 +197,7 @@ The theoretical maximum should be never reached, unless somebody deliberately
 crafts special load for it.  Still, it means you should set the number of
 file descriptors to a safely high number.
 
-Search for ``ulimit`` in your favourite shell man page.
+Search for ``ulimit`` in your favorite shell man page.
 Note: ``ulimit`` does not apply in a Windows environment.
 
 Default: 100
@@ -192,7 +214,7 @@ min_pool_size
 -------------
 
 Add more server connections to pool if below this number.
-Improves behaviour when usual load comes suddenly back after period
+Improves behavior when usual load comes suddenly back after period
 of total inactivity.
 
 Default: 0 (disabled)
@@ -376,7 +398,7 @@ stats_users
 -----------
 
 Comma-separated list of database users that are allowed to connect and
-run read-only queries on console. Thats means all SHOW commands except
+run read-only queries on console. That means all SHOW commands except
 SHOW FDS.
 
 Default: empty.
@@ -395,7 +417,7 @@ progress so it should not include ``ABORT`` or ``ROLLBACK``.
 The query is supposed to clean any changes made to database session
 so that next client gets connection in well-defined state.  Default is
 ``DISCARD ALL`` which cleans everything, but that leaves next client
-no pre-cached state.  It can be made lighter, eg ``DEALLOCATE ALL``
+no pre-cached state.  It can be made lighter, e.g. ``DEALLOCATE ALL``
 to just drop prepared statements, if application does not break when
 some state is kept around.
 
@@ -510,13 +532,13 @@ dns_zone_check_period
 
 Period to check if zone serial has changed.
 
-PgBouncer can collect dns zones from hostnames (everything after first dot)
+PgBouncer can collect DNS zones from host names (everything after first dot)
 and then periodically check if zone serial changes.
-If it notices changes, all hostnames under that zone
-are looked up again.  If any host ip changes, it's connections
+If it notices changes, all host names under that zone
+are looked up again.  If any host IP changes, its connections
 are invalidated.
 
-Works only with UDNS backend (``--with-udns`` to configure).
+Works only with UDNS and c-ares backends (``--with-udns`` or ``--with-cares`` to configure).
 
 Default: 0.0 (disabled)
 
@@ -618,7 +640,7 @@ allow
 
 prefer
     TLS connection is always requested first from PostgreSQL,
-    when refused connection will be establised over plain TCP.
+    when refused connection will be established over plain TCP.
     Server certificate is not validated.
 
 require
@@ -627,12 +649,12 @@ require
 
 verify-ca
     Connection must go over TLS and server certificate must be valid
-    according to `server_tls_ca_file`_.  Server hostname is not checked
+    according to `server_tls_ca_file`_.  Server host name is not checked
     against certificate.
 
 verify-full
     Connection must go over TLS and server certificate must be valid
-    according to `server_tls_ca_file`_.  Server hostname must match
+    according to `server_tls_ca_file`_.  Server host name must match
     certificate info.
 
 server_tls_ca_file
@@ -729,8 +751,8 @@ Default: 4096
 max_packet_size
 ---------------
 
-Maximum size for Postgres packets that PgBouncer allows through.  One packet
-is either one query or one resultset row.  Full resultset can be larger.
+Maximum size for PostgreSQL packets that PgBouncer allows through.  One packet
+is either one query or one result set row.  Full result set can be larger.
 
 Default: 2147483647
 
@@ -746,7 +768,7 @@ sbuf_loopcnt
 ------------
 
 How many times to process data on one connection, before proceeding.
-Without this limit, one connection with a big resultset can stall
+Without this limit, one connection with a big result set can stall
 PgBouncer for a long time.  One loop processes one `pkt_buf`_ amount of data.
 0 means no limit.
 
@@ -825,7 +847,7 @@ Default: same as client-side database name.
 host
 ----
 
-Hostname or IP address to connect to.  Hostnames are resolved
+Host name or IP address to connect to.  Host names are resolved
 on connect time, the result is cached per ``dns_max_ttl`` parameter.
 If DNS returns several results, they are used in round-robin
 manner.
@@ -847,15 +869,12 @@ for this database.
 Otherwise PgBouncer tries to log into the destination database with client
 username, meaning that there will be one pool per user.
 
+The length for ``password`` is limited to 128 characters maximum.
+
 auth_user
 ---------
 
-If ``auth_user`` is set, any user not specified in auth_file will be
-queried from pg_shadow in the database using ``auth_user``. Auth_user's
-password will be taken from ``auth_file``.
-
-Direct access to pg_shadow requires admin rights.  It's preferable to
-use non-admin user that calls SECURITY DEFINER function instead.
+Override of the global ``auth_user`` setting, if specified.
 
 pool_size
 ---------
@@ -993,7 +1012,7 @@ Database defaults::
 
   [databases]
 
-  ; foodb over unix socket
+  ; foodb over Unix socket
   foodb =
 
   ; redirect bardb to bazdb on localhost
@@ -1019,9 +1038,8 @@ Example of secure function for auth_query::
 See also
 ========
 
+pgbouncer(1) - man page for general usage, console commands.
 
 https://pgbouncer.github.io/
 
 https://wiki.postgresql.org/wiki/PgBouncer
-
-pgbouncer(1) - manpage for general usage, console commands.

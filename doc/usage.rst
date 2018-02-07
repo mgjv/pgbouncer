@@ -154,11 +154,11 @@ database **pgbouncer**::
   $ psql -p 6543 pgbouncer
 
 Only users listed in configuration parameters **admin_users** or **stats_users**
-are allowed to login to the console.  (Except when `auth_mode=any`, then
+are allowed to login to the console.  (Except when `auth_type=any`, then
 any user is allowed in as a stats_user.)
 
 Additionally, the username **pgbouncer** is allowed to log in without password,
-if the login comes via Unix socket and the client has same Unix user uid
+if the login comes via Unix socket and the client has same Unix user UID
 as the running process.
 
 Show commands
@@ -174,8 +174,11 @@ Shows statistics.
 database
     Statistics are presented per database.
 
-total_requests
-    Total number of SQL requests pooled by **pgbouncer**.
+total_xact_count
+    Total number of SQL transactions pooled by **pgbouncer**.
+
+total_query_count
+    Total number of SQL queries pooled by **pgbouncer**.
 
 total_received
     Total volume in bytes of network traffic received by **pgbouncer**.
@@ -183,12 +186,23 @@ total_received
 total_sent
     Total volume in bytes of network traffic sent by **pgbouncer**.
 
+total_xact_time
+    Total number of microseconds spent by **pgbouncer** when connected
+    to PostgreSQL in a transaction, either idle in transaction or
+    executing queries.
+
 total_query_time
     Total number of microseconds spent by **pgbouncer** when actively
-    connected to PostgreSQL.
+    connected to PostgreSQL, executing queries.
 
-avg_req
-    Average requests per second in last stat period.
+total_wait_time
+    Time spent by clients waiting for a server in microseconds.
+
+avg_xact_count
+    Average transactions per second in last stat period.
+
+avg_query_count
+    Average queries per second in last stat period.
 
 avg_recv
     Average received (from clients) bytes per second.
@@ -196,8 +210,27 @@ avg_recv
 avg_sent
     Average sent (to clients) bytes per second.
 
-avg_query
+avg_xact_time
+	Average transaction duration in microseconds.
+
+avg_query_time
     Average query duration in microseconds.
+
+avg_wait_time
+    Time spent by clients waiting for a server in microseconds (average
+    per second).
+
+SHOW STATS_TOTALS;
+------------------
+
+Subset of **SHOW STATS** showing the total values (**total\_**).
+
+
+SHOW STATS_AVERAGES;
+--------------------
+
+Subset of **SHOW STATS** showing the average values (**avg\_**).
+
 
 SHOW SERVERS;
 -------------
@@ -206,7 +239,7 @@ type
     S, for server.
 
 user
-    Username **pgbouncer** uses to connect to server.
+    User name **pgbouncer** uses to connect to server.
 
 database
     Database name.
@@ -216,7 +249,7 @@ state
     **idle**.
 
 addr
-  IP address of PostgreSQL server.
+    IP address of PostgreSQL server.
 
 port
     Port of PostgreSQL server.
@@ -241,11 +274,11 @@ link
     Address of client connection the server is paired with.
 
 remote_pid
-    Pid of backend server process.  In case connection is made over
-    unix socket and OS supports getting process ID info, it's
-    OS pid.  Otherwise it's extracted from cancel packet server sent,
-    which should be PID in case server is Postgres, but it's a random
-    number in case server it another PgBouncer.
+    PID of backend server process.  In case connection is made over
+    Unix socket and OS supports getting process ID info, its
+    OS PID.  Otherwise it's extracted from cancel packet server sent,
+    which should be PID in case server is PostgreSQL, but it's a random
+    number in case server it is another PgBouncer.
 
 SHOW CLIENTS;
 -------------
@@ -289,7 +322,7 @@ link
     Address of server connection the client is paired with.
 
 remote_pid
-    Process ID, in case client connects over UNIX socket
+    Process ID, in case client connects over Unix socket
     and OS supports getting it.
 
 SHOW POOLS;
@@ -402,14 +435,14 @@ pool_mode
 SHOW FDS;
 ---------
 
-Internal command - shows list of fds in use with internal state attached to them.
+Internal command - shows list of file descriptors in use with internal state attached to them.
 
-When the connected user has username "pgbouncer", connects through Unix socket
-and has same UID as running process, the actual fds are passed over the connection.
+When the connected user has user name "pgbouncer", connects through Unix socket
+and has same UID as the running process, the actual FDs are passed over the connection.
 This mechanism is used to do an online restart.
 Note: This does not work on Windows machines.
 
-This command also blocks internal event loop, so it should not be used
+This command also blocks the internal event loop, so it should not be used
 while PgBouncer is in use.
 
 fd
@@ -425,7 +458,7 @@ database
     Database of the connection using the FD.
 
 addr
-    IP address of the connection using the FD, **unix** if a unix socket
+    IP address of the connection using the FD, **unix** if a Unix socket
     is used.
 
 port
@@ -456,13 +489,13 @@ changeable
 SHOW DNS_HOSTS;
 ---------------
 
-Show hostnames in DNS cache.
+Show host names in DNS cache.
 
 hostname
     Host name.
 
 ttl
-    How meny seconds until next lookup.
+    How many seconds until next lookup.
 
 addrs
     Comma separated list of addresses.
@@ -479,7 +512,7 @@ serial
     Current serial.
 
 count
-    Hostnames belonging to this zone.
+    Host names belonging to this zone.
 
 
 Process controlling commands
@@ -560,9 +593,8 @@ From libevent docs::
 See also
 ========
 
-pgbouncer(5) - manpage of configuration settings descriptions.
+pgbouncer(5) - man page of configuration settings descriptions.
 
 https://pgbouncer.github.io/
 
 https://wiki.postgresql.org/wiki/PgBouncer
-

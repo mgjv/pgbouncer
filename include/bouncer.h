@@ -1,12 +1,12 @@
 /*
  * PgBouncer - Lightweight connection pooler for PostgreSQL.
- * 
+ *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -105,10 +105,11 @@ extern int cf_sbuf_len;
 #include "takeover.h"
 #include "janitor.h"
 #include "hba.h"
+#include "pam.h"
 
 /* to avoid allocations will use static buffers */
 #define MAX_USERNAME	64
-#define MAX_PASSWORD	64
+#define MAX_PASSWORD	128
 
 /* no-auth modes */
 #define AUTH_ANY	-1 /* same as trust but without username check */
@@ -127,6 +128,7 @@ extern int cf_sbuf_len;
 #define AUTH_PEER	8
 #define AUTH_HBA	9
 #define AUTH_REJECT	10
+#define AUTH_PAM	11
 
 /* type codes for weird pkts */
 #define PKT_STARTUP_V2  0x20000
@@ -185,10 +187,13 @@ int pga_cmp_addr(const PgAddr *a, const PgAddr *b);
  * Stats, kept per-pool.
  */
 struct PgStats {
-	uint64_t request_count;
+	uint64_t xact_count;
+	uint64_t query_count;
 	uint64_t server_bytes;
 	uint64_t client_bytes;
-	usec_t query_time;	/* total req time in us */
+	usec_t xact_time;	/* total transaction time in us */
+	usec_t query_time;	/* total query time in us */
+	usec_t wait_time;	/* total time clients had to wait */
 };
 
 /*
@@ -338,6 +343,7 @@ struct PgSocket {
 	bool wait_for_welcome:1;/* client: no server yet in pool, cannot send welcome msg */
 	bool wait_for_user_conn:1;/* client: waiting for auth_conn server connection */
 	bool wait_for_user:1;	/* client: waiting for auth_conn query results */
+	bool wait_for_auth:1;	/* client: waiting for external auth (PAM) to be completed */
 
 	bool suspended:1;	/* client/server: if the socket is suspended */
 
@@ -352,6 +358,8 @@ struct PgSocket {
 	usec_t connect_time;	/* when connection was made */
 	usec_t request_time;	/* last activity time */
 	usec_t query_start;	/* query start moment */
+	usec_t xact_start;	/* xact start moment */
+	usec_t wait_start;	/* waiting start moment */
 
 	uint8_t cancel_key[BACKENDKEY_LEN]; /* client: generated, server: remote */
 	PgAddr remote_addr;	/* ip:port for remote endpoint */
@@ -426,6 +434,7 @@ extern usec_t cf_dns_zone_check_period;
 extern int cf_auth_type;
 extern char *cf_auth_file;
 extern char *cf_auth_query;
+extern char *cf_auth_user;
 extern char *cf_auth_hba_file;
 
 extern char *cf_pidfile;
@@ -503,10 +512,10 @@ last_socket(struct StatList *slist)
 	return container_of(slist->head.prev, PgSocket, head);
 }
 
+bool requires_auth_file(int);
 void load_config(void);
 
 
 bool set_config_param(const char *key, const char *val);
 void config_for_each(void (*param_cb)(void *arg, const char *name, const char *val, bool reloadable),
 		     void *arg);
-

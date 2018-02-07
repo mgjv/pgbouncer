@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(pgbouncer, 1.7.2)
+AC_INIT(pgbouncer, 1.8.1)
 AC_CONFIG_SRCDIR(src/janitor.c)
 AC_CONFIG_HEADER(lib/usual/config.h)
 AC_PREREQ([2.59])
@@ -14,7 +14,7 @@ AC_USUAL_PROGRAM_CHECK
 PKG_PROG_PKG_CONFIG
 
 dnl check for rst2man
-AC_CHECK_PROGS(RST2MAN, rst2man)
+AC_CHECK_PROGS(RST2MAN, rst2man, rst2man)
 
 dnl check for windows tools
 if test "$PORTNAME" = "win32"; then
@@ -54,6 +54,28 @@ AC_CHECK_FUNCS(lstat)
 dnl Find libevent
 AC_USUAL_LIBEVENT
 
+dnl Check for PAM authorization support
+pam_support=no
+AC_ARG_WITH(pam,
+  AC_HELP_STRING([--with-pam],[Enable PAM support]),
+  [ PAM=
+    if test "$withval" != no; then
+        have_pthreads=no
+        # Look for PAM header and lib
+        AC_CHECK_HEADERS(security/pam_appl.h, [have_pam_header=t])
+        AC_CHECK_HEADERS(pthread.h, [have_pthreads=yes])
+        AC_SEARCH_LIBS(pam_start, pam, [have_libpam=t])
+        AC_SEARCH_LIBS(pthread_create, pthread, [], [have_pthreads=no])
+        if test x"${have_pthreads}" != xyes; then
+           AC_MSG_ERROR([pthread library should be available for PAM support])
+        fi
+        if test x"${have_pam_header}" != x -a x"${have_libpam}" != x -a x"${have_pthreads}" = xyes; then
+          pam_support=yes
+          AC_DEFINE(HAVE_PAM, 1, [PAM support])
+        fi
+    fi
+  ], [])
+
 ##
 ## DNS backend
 ##
@@ -70,9 +92,11 @@ AC_ARG_WITH(cares,
   [ if test "$withval" = "no"; then
       use_cares=no
     elif test "$withval" = "yes"; then
-      use_cares=yes
+      use_cares="$withval"
       CARES_CFLAGS=""
       CARES_LIBS="-lcares"
+    elif test "$withval" = "auto"; then
+      use_cares="$withval"
     else
       use_cares=yes
       CARES_CFLAGS="-I$withval/include"
@@ -181,4 +205,5 @@ echo "  c-ares = $use_cares"
 echo "  evdns = $use_evdns"
 echo "  udns = $use_udns"
 echo "  tls = $tls_support"
+echo "  PAM = $pam_support"
 echo ""

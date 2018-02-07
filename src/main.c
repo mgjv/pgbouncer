@@ -1,12 +1,12 @@
 /*
  * PgBouncer - Lightweight connection pooler for PostgreSQL.
- * 
+ *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -90,6 +90,7 @@ int cf_tcp_keepintvl;
 int cf_auth_type = AUTH_MD5;
 char *cf_auth_file;
 char *cf_auth_hba_file;
+char *cf_auth_user;
 char *cf_auth_query;
 
 int cf_max_client_conn;
@@ -172,6 +173,9 @@ static const struct CfLookup auth_type_map[] = {
 	{ "md5", AUTH_MD5 },
 	{ "cert", AUTH_CERT },
 	{ "hba", AUTH_HBA },
+#ifdef HAVE_PAM
+	{ "pam", AUTH_PAM },
+#endif
 	{ NULL }
 };
 
@@ -209,8 +213,9 @@ CF_ABS("unix_socket_mode", CF_INT, cf_unix_socket_mode, CF_NO_RELOAD, "0777"),
 CF_ABS("unix_socket_group", CF_STR, cf_unix_socket_group, CF_NO_RELOAD, ""),
 #endif
 CF_ABS("auth_type", CF_LOOKUP(auth_type_map), cf_auth_type, 0, "md5"),
-CF_ABS("auth_file", CF_STR, cf_auth_file, 0, "unconfigured_file"),
+CF_ABS("auth_file", CF_STR, cf_auth_file, 0, NULL),
 CF_ABS("auth_hba_file", CF_STR, cf_auth_hba_file, 0, ""),
+CF_ABS("auth_user", CF_STR, cf_auth_user, 0, NULL),
 CF_ABS("auth_query", CF_STR, cf_auth_query, 0, "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"),
 CF_ABS("pool_mode", CF_LOOKUP(pool_mode_map), cf_pool_mode, 0, "session"),
 CF_ABS("max_client_conn", CF_INT, cf_max_client_conn, 0, "100"),
@@ -351,6 +356,15 @@ static void set_dbs_dead(bool flag)
 	}
 }
 
+/* Tells if the specified auth type requires data from the auth file. */
+bool requires_auth_file(int auth_type)
+{
+	/* For PAM authentication auth file is not used */
+	if (auth_type == AUTH_PAM)
+		return false;
+	return auth_type >= AUTH_TRUST;
+}
+
 /* config loading, tries to be tolerant to errors */
 void load_config(void)
 {
@@ -363,7 +377,7 @@ void load_config(void)
 	ok = cf_load_file(&main_config, cf_config_file);
 	if (ok) {
 		/* load users if needed */
-		if (cf_auth_type >= AUTH_TRUST)
+		if (requires_auth_file(cf_auth_type))
 			loader_users_check();
 		loaded = true;
 	} else if (!loaded) {
@@ -708,6 +722,7 @@ static void main_loop_once(void)
 		if (errno != EINTR)
 			log_warning("event_loop failed: %s", strerror(errno));
 	}
+	pam_poll();
 	per_loop_maint();
 	reuse_just_freed_objects();
 	rescue_timers();
@@ -773,6 +788,7 @@ static void cleanup(void)
 	xfree(&cf_auth_file);
 	xfree(&cf_auth_hba_file);
 	xfree(&cf_auth_query);
+	xfree(&cf_auth_user);
 	xfree(&cf_server_reset_query);
 	xfree(&cf_server_check_query);
 	xfree(&cf_ignore_startup_params);
@@ -906,6 +922,8 @@ int main(int argc, char *argv[])
 	signal_setup();
 	janitor_setup();
 	stats_setup();
+
+	pam_init();
 
 	if (did_takeover) {
 		takeover_finish();
