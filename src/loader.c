@@ -175,7 +175,8 @@ static void set_autodb(const char *connstr)
 }
 
 
-/* The following function allows auto-connections to specify
+/* 
+ * The following function allows auto-connections to specify
  * their target database by providing a connection-string-like
  * format that we'll translate on the fly here.
  */
