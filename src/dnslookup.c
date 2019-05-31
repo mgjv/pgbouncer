@@ -1116,7 +1116,7 @@ static int ares_parse_soa_reply(const unsigned char *abuf, int alen, struct ares
 	soa->expire = DNS__32BIT(aptr + 3*4);
 	soa->minttl = DNS__32BIT(aptr + 4*4);
 
-	log_noise("Ares SOA result: qname=%s rr_name=%s serial=%u", qname, rr_name, soa->serial);
+	log_noise("ares SOA result: qname=%s rr_name=%s serial=%u", qname, rr_name, soa->serial);
 
 	free(qname);
 	free(rr_name);
@@ -1662,4 +1662,3 @@ void adns_per_loop(struct DNSContext *ctx)
 {
 	impl_per_loop(ctx);
 }
-

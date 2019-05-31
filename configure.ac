@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(pgbouncer, 1.8.1)
+AC_INIT(pgbouncer, 1.9.0)
 AC_CONFIG_SRCDIR(src/janitor.c)
 AC_CONFIG_HEADER(lib/usual/config.h)
 AC_PREREQ([2.59])
@@ -13,8 +13,7 @@ AC_USUAL_PROGRAM_CHECK
 
 PKG_PROG_PKG_CONFIG
 
-dnl check for rst2man
-AC_CHECK_PROGS(RST2MAN, rst2man, rst2man)
+AC_CHECK_PROGS(PANDOC, pandoc, pandoc)
 
 dnl check for windows tools
 if test "$PORTNAME" = "win32"; then

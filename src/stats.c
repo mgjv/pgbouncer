@@ -1,12 +1,12 @@
 /*
  * PgBouncer - Lightweight connection pooler for PostgreSQL.
- * 
+ *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -354,13 +354,13 @@ static void refresh_stats(int s, short flags, void *arg)
 	}
 	calc_average(&avg, &cur_total, &old_total);
 	/* send totals to logfile */
-	log_info("Stats: %" PRIu64 " xacts/s,"
+	log_info("stats: %" PRIu64 " xacts/s,"
 		 " %" PRIu64 " queries/s,"
 		 " in %" PRIu64 " B/s,"
 		 " out %" PRIu64 " B/s,"
 		 " xact %" PRIu64 " us,"
-		 " query %" PRIu64 " us"
-		 " wait time %" PRIu64 " us",
+		 " query %" PRIu64 " us,"
+		 " wait %" PRIu64 " us",
 		 avg.xact_count, avg.query_count,
 		 avg.client_bytes, avg.server_bytes,
 		 avg.xact_time, avg.query_time,
@@ -380,4 +380,3 @@ void stats_setup(void)
 	evtimer_set(&ev_stats, refresh_stats, NULL);
 	safe_evtimer_add(&ev_stats, &period);
 }
-

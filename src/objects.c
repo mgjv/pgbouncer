@@ -157,6 +157,7 @@ void change_client_state(PgSocket *client, SocketState newstate)
 	case CL_WAITING_LOGIN:
 		if (newstate == CL_ACTIVE)
 			newstate = CL_LOGIN;
+		/* fallthrough */
 	case CL_WAITING:
 		statlist_remove(&pool->waiting_client_list, &client->head);
 		break;
@@ -186,6 +187,7 @@ void change_client_state(PgSocket *client, SocketState newstate)
 		break;
 	case CL_WAITING:
 		client->wait_start = get_cached_time();
+		/* fallthrough */
 	case CL_WAITING_LOGIN:
 		statlist_append(&pool->waiting_client_list, &client->head);
 		break;
@@ -331,7 +333,6 @@ PgDatabase *add_database(const char *name)
 		if (!db->name)
 		{
 			log_warning("Couldn't allocate name: %s", name);
-			slab_free(db_cache, db);
 			return NULL;
 		}
 
@@ -594,8 +595,8 @@ bool check_fast_fail(PgSocket *client)
 	int cnt;
 	PgPool *pool = client->pool;
 
-	/* reject if no servers and last connect failed */
-	if (!pool->last_connect_failed)
+	/* reject if no servers are available and the last login failed */
+	if (!pool->last_login_failed)
 		return true;
 	cnt = pool_server_count(pool) - statlist_count(&pool->new_server_list);
 	if (cnt)
@@ -704,7 +705,7 @@ static bool reset_on_release(PgSocket *server)
 
 	Assert(server->state == SV_TESTED);
 
-	slog_debug(server, "Resetting: %s", cf_server_reset_query);
+	slog_debug(server, "resetting: %s", cf_server_reset_query);
 	SEND_generic(res, server, 'Q', "s", cf_server_reset_query);
 	if (!res)
 		disconnect_server(server, false, "reset query failed");
@@ -762,6 +763,7 @@ bool release_server(PgSocket *server)
 	case SV_TESTED:
 		break;
 	case SV_LOGIN:
+		pool->last_login_failed = 0;
 		pool->last_connect_failed = 0;
 		break;
 	default:
@@ -812,7 +814,7 @@ void disconnect_server(PgSocket *server, bool notify, const char *reason, ...)
 	reason = buf;
 
 	if (cf_log_disconnections)
-		slog_info(server, "closing because: %s (age=%" PRIu64 ")", reason,
+		slog_info(server, "closing because: %s (age=%" PRIu64 "s)", reason,
 			  (now - server->connect_time) / USEC);
 
 	switch (server->state) {
@@ -834,9 +836,20 @@ void disconnect_server(PgSocket *server, bool notify, const char *reason, ...)
 		 * except when sending cancel packet
 		 */
 		if (!server->ready)
+		{
+			pool->last_login_failed = 1;
 			pool->last_connect_failed = 1;
+		}
 		else
+		{
+			/*
+			 * We did manage to connect and used the connection for query
+			 * cancellation, so to the best of our knowledge we can connect to
+			 * the server, reset last_connect_failed accordingly.
+			 */
+			pool->last_connect_failed = 0;
 			send_term = 0;
+		}
 		break;
 	default:
 		fatal("disconnect_server: bad server state (%d)", server->state);
@@ -877,7 +890,7 @@ void disconnect_client(PgSocket *client, bool notify, const char *reason, ...)
 	reason = buf;
 
 	if (cf_log_disconnections)
-		slog_info(client, "closing because: %s (age=%" PRIu64 ")", reason,
+		slog_info(client, "closing because: %s (age=%" PRIu64 "s)", reason,
 			  (now - client->connect_time) / USEC);
 
 	switch (client->state) {
@@ -996,7 +1009,7 @@ static void dns_connect(struct PgSocket *server)
 		sa_un.sun_family = AF_UNIX;
 		unix_dir = host ? host : cf_unix_socket_dir;
 		if (!unix_dir || !*unix_dir) {
-			log_error("Unix socket dir not configured: %s", db->name);
+			log_error("unix socket dir not configured: %s", db->name);
 			disconnect_server(server, false, "cannot connect");
 			return;
 		}
@@ -1128,7 +1141,7 @@ void launch_new_connection(PgPool *pool)
 			PgSocket *c = first_socket(&pool->waiting_client_list);
 			if (c && (now - c->request_time) >= cf_res_pool_timeout) {
 				if (total < pool->db->pool_size + pool->db->res_pool_size) {
-					slog_warning(c, "Taking connection from reserve_pool");
+					slog_warning(c, "taking connection from reserve_pool");
 					goto allow_new;
 				}
 			}
@@ -1669,4 +1682,3 @@ void objects_cleanup(void)
 	slab_destroy(iobuf_cache);
 	iobuf_cache = NULL;
 }
-

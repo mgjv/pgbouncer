@@ -129,7 +129,7 @@ bool strset_add(struct StrSet *set, const char *str, unsigned int len)
 		set->nodes[set->count++] = node;
 		return true;
 	}
-	
+
 	if (!set->cbtree) {
 		set->cbtree = cbtree_create(strset_node_key, NULL, set, set->pool);
 		if (!set->cbtree)
@@ -359,7 +359,6 @@ static bool parse_namefile(struct HBAName *hname, const char *fn, bool is_db)
 
 	f = fopen(fn, "r");
 	if (!f) {
-		free(fn);
 		return false;
 	}
 	for (linenr = 1; ; linenr++) {
@@ -525,7 +524,7 @@ static bool parse_line(struct HBA *hba, struct TokParser *tp, int linenr, const 
 	rule = calloc(sizeof *rule, 1);
 	if (!rule) {
 		log_warning("hba: no mem for rule");
-		goto failed;
+		return false;
 	}
 	rule->rule_type = rtype;
 
@@ -550,7 +549,7 @@ static bool parse_line(struct HBA *hba, struct TokParser *tp, int linenr, const 
 			log_warning("hba line %d: failed to parse address - %s", linenr, addr);
 			goto failed;
 		}
-		
+
 		if (nmask) {
 			if (!parse_nmask(rule, nmask)) {
 				log_warning("hba line %d: invalid mask", linenr);
@@ -571,7 +570,7 @@ static bool parse_line(struct HBA *hba, struct TokParser *tp, int linenr, const 
 		}
 		if (bad_mask(rule)) {
 			char buf1[128], buf2[128];
-			log_warning("Addres does not match mask in %s line #%d: %s / %s", parent_filename, linenr,
+			log_warning("address does not match mask in %s line #%d: %s / %s", parent_filename, linenr,
 				    inet_ntop(rule->rule_af, rule->rule_addr, buf1, sizeof buf1),
 				    inet_ntop(rule->rule_af, rule->rule_mask, buf2, sizeof buf2));
 		}
@@ -740,4 +739,3 @@ int hba_eval(struct HBA *hba, PgAddr *addr, bool is_tls, const char *dbname, con
 	}
 	return AUTH_REJECT;
 }
-

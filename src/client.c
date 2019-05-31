@@ -95,7 +95,7 @@ static void start_auth_request(PgSocket *client, const char *username)
 		client->wait_for_user_conn = true;
 		return;
 	}
-	slog_noise(client, "Doing auth_conn query");
+	slog_noise(client, "doing auth_conn query");
 	client->wait_for_user_conn = false;
 	client->wait_for_user = true;
 	if (!sbuf_pause(&client->sbuf)) {
@@ -237,12 +237,12 @@ bool set_pool(PgSocket *client, const char *dbname, const char *username, const 
 	if (!client->db) {
 		client->db = register_auto_database(dbname);
 		if (!client->db) {
-			disconnect_client(client, true, "No such database: %s", dbname);
+			disconnect_client(client, true, "no such database: %s", dbname);
 			if (cf_log_connections)
 				slog_info(client, "login failed: db=%s user=%s", dbname, username);
 			return false;
 		} else {
-			slog_info(client, "registered new auto-database: db = %s", dbname );
+			slog_info(client, "registered new auto-database: db=%s", dbname);
 		}
 	}
 
@@ -255,6 +255,21 @@ bool set_pool(PgSocket *client, const char *dbname, const char *username, const 
 	if (client->db->admin) {
 		if (admin_pre_login(client, username))
 			return finish_set_pool(client, takeover);
+	}
+
+	/* avoid dealing with invalid data below, and give an
+	 * appropriate error message */
+	if (strlen(username) >= MAX_USERNAME) {
+		disconnect_client(client, true, "username too long");
+		if (cf_log_connections)
+			slog_info(client, "login failed: db=%s user=%s", dbname, username);
+		return false;
+	}
+	if (strlen(password) >= MAX_PASSWORD) {
+		disconnect_client(client, true, "password too long");
+		if (cf_log_connections)
+			slog_info(client, "login failed: db=%s user=%s", dbname, username);
+		return false;
 	}
 
 	/* find user */
@@ -291,7 +306,7 @@ bool set_pool(PgSocket *client, const char *dbname, const char *username, const 
 			return false;
 		}
 		if (!client->auth_user) {
-			disconnect_client(client, true, "No such user: %s", username);
+			disconnect_client(client, true, "no such user: %s", username);
 			if (cf_log_connections)
 				slog_info(client, "login failed: db=%s user=%s", dbname, username);
 			return false;
@@ -374,12 +389,14 @@ bool handle_auth_response(PgSocket *client, PktHdr *pkt) {
 		break;
 	case '2':	/* BindComplete */
 		break;
+	case 'S': /* ParameterStatus */
+		break;
 	case 'Z':	/* ReadyForQuery */
 		sbuf_prepare_skip(&client->link->sbuf, pkt->len);
 		if (!client->auth_user) {
 			if (cf_log_connections)
 				slog_info(client, "login failed: db=%s", client->db->name);
-			disconnect_client(client, true, "No such user");
+			disconnect_client(client, true, "no such user");
 		} else {
 			slog_noise(client, "auth query complete");
 			client->link->resetting = true;
@@ -452,12 +469,12 @@ static bool decide_startup_pool(PgSocket *client, PktHdr *pkt)
 			slog_debug(client, "ignoring startup parameter: %s=%s", key, val);
 		} else {
 			slog_warning(client, "unsupported startup parameter: %s=%s", key, val);
-			disconnect_client(client, true, "Unsupported startup parameter: %s", key);
+			disconnect_client(client, true, "unsupported startup parameter: %s", key);
 			return false;
 		}
 	}
 	if (!username || !username[0]) {
-		disconnect_client(client, true, "No username supplied");
+		disconnect_client(client, true, "no username supplied");
 		return false;
 	}
 
@@ -538,7 +555,7 @@ static bool handle_client_startup(PgSocket *client, PktHdr *pkt)
 		}
 		break;
 	case PKT_STARTUP_V2:
-		disconnect_client(client, true, "Old V2 protocol not supported");
+		disconnect_client(client, true, "old V2 protocol not supported");
 		return false;
 	case PKT_STARTUP:
 		/* require SSL except on unix socket */
@@ -584,7 +601,7 @@ static bool handle_client_startup(PgSocket *client, PktHdr *pkt)
 				if (!finish_client_login(client))
 					return false;
 			} else {
-				disconnect_client(client, true, "Auth failed");
+				disconnect_client(client, true, "auth failed");
 				return false;
 			}
 		}
@@ -619,11 +636,15 @@ static bool handle_client_work(PgSocket *client, PktHdr *pkt)
 	/* one-packet queries */
 	case 'Q':		/* Query */
 		if (cf_disable_pqexec) {
-			slog_error(client, "Client used 'Q' packet type.");
+			slog_error(client, "client used 'Q' packet type");
 			disconnect_client(client, true, "PQexec disallowed");
 			return false;
 		}
+		rfq_delta++;
+		break;
 	case 'F':		/* FunctionCall */
+		rfq_delta++;
+		break;
 
 	/* request immediate response from server */
 	case 'S':		/* Sync */
@@ -719,7 +740,7 @@ bool client_proto(SBuf *sbuf, SBufEvent evtype, struct MBuf *data)
 		disconnect_client(client, false, "client unexpected eof");
 		break;
 	case SBUF_EV_SEND_FAILED:
-		disconnect_server(client->link, false, "Server connection closed");
+		disconnect_server(client->link, false, "server connection closed");
 		break;
 	case SBUF_EV_READ:
 		/* Wait until full packet headers is available. */

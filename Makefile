@@ -51,7 +51,7 @@ AM_FEATURES = libusual
 pgbouncer_EMBED_LIBUSUAL = 1
 
 # docs to install as-is
-dist_doc_DATA = README.rst NEWS.rst etc/pgbouncer.ini etc/userlist.txt
+dist_doc_DATA = README.md NEWS.md etc/pgbouncer.ini etc/userlist.txt
 
 DISTCLEANFILES = config.mak config.status lib/usual/config.h config.log
 
@@ -78,13 +78,13 @@ LIBUSUAL_DIST = $(filter-out %/config.h, $(sort $(wildcard \
 		lib/README lib/COPYRIGHT \
 		lib/find_modules.sh )))
 
-#
-# win32
-#
-
 pgbouncer_LDFLAGS := $(TLS_LDFLAGS)
 pgbouncer_LDADD := $(CARES_LIBS) $(TLS_LIBS) $(LIBS)
 LIBS :=
+
+#
+# win32
+#
 
 EXTRA_pgbouncer_SOURCES = win32/win32support.c win32/win32support.h
 EXTRA_PROGRAMS = pgbevent
@@ -149,10 +149,9 @@ tags:
 	ctags src/*.c include/*.h lib/usual/*.[ch] lib/usual/*/*.[ch]
 
 htmls:
-	for f in *.rst doc/*.rst; do \
-		mkdir -p html && rst2html $$f > html/`basename $$f`.html; \
+	for f in *.md doc/*.md; do \
+		mkdir -p html && $(PANDOC) $$f -o html/`basename $$f`.html; \
 	done
 
 doc/pgbouncer.1 doc/pgbouncer.5:
 	$(MAKE) -C doc
-

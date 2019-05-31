@@ -1,12 +1,12 @@
 /*
  * PgBouncer - Lightweight connection pooler for PostgreSQL.
- * 
+ *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -162,7 +162,7 @@ static bool add_listen(int af, const struct sockaddr *sa, int salen)
 	return true;
 
 failed:
-	log_warning("Cannot listen on %s: %s(): %s",
+	log_warning("cannot listen on %s: %s(): %s",
 		    sa2str(sa, buf, sizeof(buf)),
 		    errpos, strerror(errno));
 	if (sock >= 0)
@@ -290,7 +290,7 @@ static void pool_accept(int sock, short flags, void *arg)
 	bool is_unix = pga_is_unix(&ls->addr);
 
 	if(!(flags & EV_READ)) {
-		log_warning("No EV_READ in pool_accept");
+		log_warning("no EV_READ in pool_accept");
 		return;
 	}
 loop:
@@ -478,4 +478,3 @@ bool for_each_pooler_fd(pooler_cb cbfunc, void *arg)
 	}
 	return true;
 }
-

@@ -1,12 +1,12 @@
 /*
  * PgBouncer - Lightweight connection pooler for PostgreSQL.
- * 
+ *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -102,6 +102,7 @@ static bool handle_server_startup(PgSocket *server, PktHdr *pkt)
 
 		case 'E':	/* log & ignore errors */
 			log_server_error("S: error while executing exec_on_query", pkt);
+			/* fallthrough */
 		default:	/* ignore rest */
 			sbuf_prepare_skip(sbuf, pkt->len);
 			return true;
@@ -230,7 +231,7 @@ static bool handle_server_work(PgSocket *server, PktHdr *pkt)
 		slog_error(server, "unknown pkt: '%c'", pkt_desc(pkt));
 		disconnect_server(server, true, "unknown pkt");
 		return false;
-	
+
 	/* pooling decisions will be based on this packet */
 	case 'Z':		/* ReadyForQuery */
 
@@ -242,7 +243,7 @@ static bool handle_server_work(PgSocket *server, PktHdr *pkt)
 		if (state == 'I')
 			ready = true;
 		else if (pool_pool_mode(server->pool) == POOL_STMT) {
-			disconnect_server(server, true, "Long transactions not allowed");
+			disconnect_server(server, true, "long transactions not allowed");
 			return false;
 		} else if (state == 'T' || state == 'E') {
 			idle_tx = true;
@@ -288,6 +289,7 @@ static bool handle_server_work(PgSocket *server, PktHdr *pkt)
 			disconnect_server(server, true, "invalid server parameter");
 			return false;
 		}
+		/* fallthrough */
 	case 'C':		/* CommandComplete */
 
 		/* ErrorResponse and CommandComplete show end of copy mode */
@@ -578,4 +580,3 @@ bool server_proto(SBuf *sbuf, SBufEvent evtype, struct MBuf *data)
 		takeover_login_failed();
 	return res;
 }
-

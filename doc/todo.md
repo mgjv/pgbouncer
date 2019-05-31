@@ -16,13 +16,14 @@ Problems / cleanups
 -------------------
 
 * Bad naming in data strctures:
+
   * PgSocket->auth_user [vs. PgDatabase->auth_user]
   * PgSocket->db [vs. PgPool->db]
 
 * other per-user settings
 
 * Maintenance order vs. lifetime_kill_gap:
-  http://lists.pgfoundry.org/pipermail/pgbouncer-general/2011-February/000679.html
+  <http://lists.pgfoundry.org/pipermail/pgbouncer-general/2011-February/000679.html>
 
 * per_loop_maint/per_loop_activate take too much time in case
   of moderate load and lots of pools.  Perhaps active_pool_list
@@ -41,6 +42,7 @@ Problems / cleanups
 * cleanup of logging levels, to make log more useful
 
 * to test:
+
   - signal flood
   - no mem / no fds handling
 
@@ -77,4 +79,3 @@ Dubious/complicated features
   that could be solved by just having threads for login handling,
   which would be lot simpler or just deciding that it is not
   worth fixing.
-
