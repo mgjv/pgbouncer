@@ -250,7 +250,7 @@ static enum TokType next_token(struct TokParser *p)
 			if (isspace((unsigned char)*s))
 				break;
 		}
-		if (!tok_buf_check(p, s - p->pos))
+		if (!tok_buf_check(p, s - p->pos + 1))
 			return TOK_FAIL;
 		memcpy(p->buf, p->pos, s - p->pos);
 		p->buf[s - p->pos] = 0;
@@ -373,7 +373,6 @@ static bool parse_namefile(struct HBAName *hname, const char *fn, bool is_db)
 			break;
 	}
 	free_parser(&tp);
-	free(fn);
 	free(ln);
 	fclose(f);
 	return ok;
@@ -393,12 +392,15 @@ static bool parse_names(struct HBAName *hname, struct TokParser *tp, bool is_db,
 				goto eat_comma;
 			}
 			if (eat_kw(tp, "samerole")) {
+				log_warning("samerole is not supported");
 				return false;
 			}
 			if (eat_kw(tp, "samegroup")) {
+				log_warning("samegroup is not supported");
 				return false;
 			}
 			if (eat_kw(tp, "replication")) {
+				log_warning("replication is not supported");
 				return false;
 			}
 		}
@@ -418,6 +420,7 @@ static bool parse_names(struct HBAName *hname, struct TokParser *tp, bool is_db,
 				free(fn);
 				if (!ok)
 					return false;
+				next_token(tp);
 				goto eat_comma;
 			}
 			/* fallthrough */
@@ -448,6 +451,8 @@ eat_comma:
 
 static void rule_free(struct HBARule *rule)
 {
+	strset_free(rule->db_name.name_set);
+	strset_free(rule->user_name.name_set);
 	free(rule);
 }
 
@@ -629,6 +634,8 @@ struct HBA *hba_load_rules(const char *fn)
 			break;
 		parse_from_string(&tp, ln);
 		if (!parse_line(hba, &tp, linenr, fn)) {
+			/* Tell the admin where to look for the problem. */
+			log_warning("could not parse hba config line %d", linenr);
 			/* Ignore line, but parse to the end. */
 			continue;
 		}

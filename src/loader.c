@@ -236,7 +236,7 @@ bool parse_database(void *base, const char *name, const char *connstr)
 	char *port = "5432";
 	char *username = NULL;
 	char *password = "";
-	char *auth_username = NULL;
+	char *auth_username = cf_auth_user;
 	char *client_encoding = NULL;
 	char *datestyle = NULL;
 	char *timezone = NULL;
@@ -549,19 +549,21 @@ static void unquote_add_user(const char *username, const char *password)
 
 static bool auth_loaded(const char *fn)
 {
+	static bool cache_set = false;
 	static struct stat cache;
 	struct stat cur;
 
-	/* hack for resetting */
+	/* no file specified */
 	if (fn == NULL) {
 		memset(&cache, 0, sizeof(cache));
+		cache_set = true;
 		return false;
 	}
 
 	if (stat(fn, &cur) < 0)
-		return false;
+		memset(&cur, 0, sizeof(cur));
 
-	if (cache.st_dev == cur.st_dev
+	if (cache_set && cache.st_dev == cur.st_dev
 	&& cache.st_ino == cur.st_ino
 	&& cache.st_mode == cur.st_mode
 	&& cache.st_uid == cur.st_uid
@@ -570,6 +572,7 @@ static bool auth_loaded(const char *fn)
 	&& cache.st_size == cur.st_size)
 		return true;
 	cache = cur;
+	cache_set = true;
 	return false;
 }
 
@@ -597,11 +600,14 @@ bool load_auth_file(const char *fn)
 {
 	char *user, *password, *buf, *p;
 
+	/* No file to load? */
+	if (fn == NULL)
+		return NULL;
+
 	buf = load_file(fn, NULL);
 	if (buf == NULL) {
-		/* reset file info */
-		auth_loaded(NULL);
-		return false;
+		log_error("could not open auth_file %s: %s", fn, strerror(errno));
+		return NULL;
 	}
 
 	log_debug("loading auth_file: \"%s\"", fn);
@@ -636,7 +642,7 @@ bool load_auth_file(const char *fn)
 			break;
 		}
 		*p++ = 0; /* tag username end */
-		
+
 		/* get password */
 		p = find_quote(p, true);
 		if (*p != '"') {
